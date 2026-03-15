@@ -35,7 +35,6 @@
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
         const map = L.map('map').setView([41.8268,-71.4025],15);
-
         L.tileLayer(
         "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
         {
@@ -57,7 +56,6 @@
             timestamps = Object.keys(data);
 
             const slider = document.getElementById("timeSlider");
-
             slider.max = timestamps.length - 1;
 
             updateMap(0);
@@ -87,7 +85,7 @@
                    value >= 0.2 ? "#f66d43":
                    value >= 0.1 ? "#e75b3a":
                    value >= 0   ? "#d63025":
-                                 "#000000";
+                                  "#000000";
         }
 
         function styleDorm(feature){
@@ -97,26 +95,15 @@
 
             const currentTime = timestamps[currentIndex];
             const dormName = feature.properties.Property_Name;
-
             const initData = housingData[timestamps[0]]?.[dormName];
             const dormData = housingData[currentTime]?.[dormName];
-
             if(!dormData){
                 return {color:"gray",fillColor:"gray",fillOpacity:0.5};
             }
 
             const roomsTotal = initData["Total Available Rooms"];
             const roomsAvail = dormData["Total Available Rooms"];
-
             let color = getColorPercent(roomsAvail/roomsTotal);
-            // let color = getColorPercent(1);
-
-            // if(roomsAvail === 0){
-            //     color = "red";
-            // }
-            // else if(roomsAvail < 5){
-            //     color = "orange";
-            // }
 
             return {
                 color:"black",
@@ -128,15 +115,12 @@
 
         function onEachDorm(feature,layer){
             const dormName = feature.properties.Property_Name;
-
             layer.on("click",function(){
                 const currentTime = timestamps[currentIndex];
                 const initData = housingData[timestamps[0]]?.[dormName];
                 const dormData = housingData[currentTime]?.[dormName];
-
                 let roomsTotal = "Unknown";
                 let roomsAvail = "Unknown";
-
                 if(initData){
                     roomsTotal = initData["Total Available Rooms"];
                 }
@@ -155,9 +139,7 @@
 
         function updateMap(index){
             currentIndex = index;
-
             const time = new Date(timestamps[index]);
-
             document.getElementById("timeLabel").innerText = 
                 time.toLocaleDateString("en-US", {
                     month: "short",
@@ -166,7 +148,6 @@
                     hour: "numeric",
                     minute: "2-digit"
                 });
-
             if(dormLayer){
                 dormLayer.setStyle(styleDorm);
             }

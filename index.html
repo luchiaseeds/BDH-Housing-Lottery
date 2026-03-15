@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Live Data Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <style>
+        body {margin:0;}
+        #map {height:100vh;}
+        #controls {
+            position:absolute;
+            top:10px;
+            left:50px;
+            z-index:1000;
+            background:white;
+            padding:10px;
+            border-radius:5px;
+            box-shadow:0 0 5px rgba(0,0,0,0.3);
+        }
+        #timeLabel {
+            font-family: 'Roboto', sans-serif;
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <input type="range" id="timeSlider" min="0" max="0" step="1" value="0">
+        <div id="timeLabel"></div>
+    </div>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([41.8268,-71.4025],15);
+
+        L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        {
+            // attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
+            subdomains: "abcd",
+            maxZoom: 20
+        }
+        ).addTo(map);
+
+        let housingData;
+        let timestamps;
+        let dormLayer;
+        let currentIndex = 0;
+
+        fetch("housing_output.json")
+        .then(response => response.json())
+        .then(data => {
+            housingData = data;
+            timestamps = Object.keys(data);
+
+            const slider = document.getElementById("timeSlider");
+
+            slider.max = timestamps.length - 1;
+
+            updateMap(0);
+
+            slider.addEventListener("input", function(){
+                updateMap(this.value);
+            });
+        });
+
+        fetch("dorms.geojson")
+        .then(response => response.json())
+        .then(data => {
+            dormLayer = L.geoJSON(data,{
+                style: styleDorm,
+                onEachFeature: onEachDorm
+            }).addTo(map);
+        });
+
+        function getColorPercent(value){
+            return value >= 0.9 ? "#24974e":
+                   value >= 0.8 ? "#65bd62":
+                   value >= 0.7 ? "#a5d967":
+                   value >= 0.6 ? "#d8f08d":
+                   value >= 0.5 ? "#fee18a":
+                   value >= 0.4 ? "#ffac5d":
+                   value >= 0.3 ? "#fd8c3d":
+                   value >= 0.2 ? "#f66d43":
+                   value >= 0.1 ? "#e75b3a":
+                   value >= 0   ? "#d63025":
+                                 "#000000";
+        }
+
+        function styleDorm(feature){
+            if(!housingData){
+                return {color:"gray",fillOpacity:0.5};
+            }
+
+            const currentTime = timestamps[currentIndex];
+            const dormName = feature.properties.Property_Name;
+
+            const initData = housingData[timestamps[0]]?.[dormName];
+            const dormData = housingData[currentTime]?.[dormName];
+
+            if(!dormData){
+                return {color:"gray",fillColor:"gray",fillOpacity:0.5};
+            }
+
+            const roomsTotal = initData["Total Available Rooms"];
+            const roomsAvail = dormData["Total Available Rooms"];
+
+            let color = getColorPercent(roomsAvail/roomsTotal);
+            // let color = getColorPercent(1);
+
+            // if(roomsAvail === 0){
+            //     color = "red";
+            // }
+            // else if(roomsAvail < 5){
+            //     color = "orange";
+            // }
+
+            return {
+                color:"black",
+                weight:0,
+                fillColor:color,
+                fillOpacity:0.7
+            };
+        }
+
+        function onEachDorm(feature,layer){
+            const dormName = feature.properties.Property_Name;
+
+            layer.on("click",function(){
+                const currentTime = timestamps[currentIndex];
+                const initData = housingData[timestamps[0]]?.[dormName];
+                const dormData = housingData[currentTime]?.[dormName];
+
+                let roomsTotal = "Unknown";
+                let roomsAvail = "Unknown";
+
+                if(initData){
+                    roomsTotal = initData["Total Available Rooms"];
+                }
+                if(dormData){
+                    roomsAvail = dormData["Total Available Rooms"];
+                }
+
+                layer.bindPopup(
+                    "<b>"+dormName
+                    + "</b><br>Available Rooms: " + roomsAvail
+                    + "</b><br>Total Rooms: " + roomsTotal
+                    + "</b><br>Total Rooms: " + (roomsAvail/roomsTotal)*100 + "%"
+                ).openPopup();
+            });
+        }
+
+        function updateMap(index){
+            currentIndex = index;
+
+            const time = new Date(timestamps[index]);
+
+            document.getElementById("timeLabel").innerText = 
+                time.toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit"
+                });
+
+            if(dormLayer){
+                dormLayer.setStyle(styleDorm);
+            }
+        }
+    </script>
+</body>
+</html>
